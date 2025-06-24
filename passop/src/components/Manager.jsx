@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { ToastContainer, toast, Bounce } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-const API_BASE = 'http://localhost:3000/api/passwords';
+const API_BASE = 'https://passop-mongo-pydf.onrender.com/api/passwords';
 
 const Manager = () => {
   const imgRef = useRef();
