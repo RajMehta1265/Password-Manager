@@ -1,94 +1,88 @@
 const express = require('express');
-const { MongoClient } = require('mongodb');
+const { MongoClient, ObjectId } = require('mongodb');
 const dotenv = require('dotenv');
 const cors = require('cors');
 
 dotenv.config();
 
-const url = 'mongodb://localhost:27017';
-const client = new MongoClient(url);
-const dbName = 'passop';
 const app = express();
-const port = 3000;
+const client = new MongoClient(process.env.MONGO_URL);
+const dbName = 'passop';
+const port = process.env.PORT || 3000;
 
-// Enable CORS for your frontend origin
 app.use(cors({
-  origin: 'http://localhost:5173', // React frontend origin
+  origin: 'http://localhost:5173',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type'],
+  allowedHeaders: ['Content-Type']
 }));
-
-// Built-in middleware to parse JSON
 app.use(express.json());
 
 let db;
-
-// Connect to MongoDB
-client.connect()
-  .then(() => {
-    console.log("✅ Connected successfully to MongoDB");
-    db = client.db(dbName);
-  })
-  .catch(err => {
-    console.error("❌ Failed to connect to MongoDB", err);
-    process.exit(1);
-  });
+client.connect().then(() => {
+  db = client.db(dbName);
+  console.log("✅ MongoDB connected");
+}).catch(err => {
+  console.error("❌ MongoDB connection failed:", err);
+  process.exit(1);
+});
 
 // GET all passwords
-app.get('/', async (req, res) => {
+app.get('/api/passwords', async (req, res) => {
   try {
-    const collection = db.collection('Passwords');
-    const findResult = await collection.find({}).toArray();
-    const passwordsOnly = findResult.map(doc => doc.passwords); // return only passwords object
-    res.json(passwordsOnly);
+    const passwords = await db.collection('Passwords').find().toArray();
+    res.json(passwords);
   } catch (err) {
-    res.status(500).send({ error: "Failed to fetch passwords" });
+    res.status(500).json({ error: "Failed to fetch passwords" });
   }
 });
 
-// POST (save a password)
-app.post('/', async (req, res) => {
+// POST new password
+app.post('/api/passwords', async (req, res) => {
   try {
-    const input = req.body;
-    const passwordDocument = { passwords: input };
-    const collection = db.collection('Passwords');
-    const result = await collection.insertOne(passwordDocument);
-    res.send({ success: true, result });
+    const result = await db.collection('Passwords').insertOne(req.body);
+    res.json({ ...req.body, _id: result.insertedId });
   } catch (err) {
-    res.status(500).send({ error: "Failed to save password" });
+    res.status(500).json({ error: "Failed to add password" });
   }
 });
 
-// PUT (update a password)
-app.put('/', async (req, res) => {
+// PUT update password
+app.put('/api/passwords/:id', async (req, res) => {
   try {
-    const { site, username, password } = req.body;
-    const collection = db.collection('Passwords');
-    const result = await collection.updateOne(
-      { "passwords.site": site, "passwords.username": username },
-      { $set: { "passwords.password": password } }
+    const id = req.params.id;
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "Invalid ID format" });
+    }
+
+    const { _id, ...safeData } = req.body; 
+
+    const result = await db.collection('Passwords').findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: safeData },
+      { returnDocument: 'after' }
     );
-    res.send({ success: true, result });
+
+    if (!result) {
+      return res.status(404).json({ error: "Password not found" });
+    }
+
+    res.json({msg: "Password updated successfully"});
   } catch (err) {
-    res.status(500).send({ error: "Failed to update password" });
+    console.error("Update Error:", err);
+    res.status(500).json({ error: "Failed to update password" });
   }
 });
 
 // DELETE a password
-app.delete('/', async (req, res) => {
+app.delete('/api/passwords/:id', async (req, res) => {
   try {
-    const { site, username } = req.body;
-    const collection = db.collection('Passwords');
-    const result = await collection.deleteOne({
-      "passwords.site": site,
-      "passwords.username": username
-    });
-    res.send({ success: true, result });
+    await db.collection('Passwords').deleteOne({ _id: new ObjectId(req.params.id) });
+    res.json({ success: true });
   } catch (err) {
-    res.status(500).send({ error: "Failed to delete password" });
+    res.status(500).json({ error: "Failed to delete password" });
   }
 });
 
 app.listen(port, () => {
-  console.log(`🚀 Password Manager backend running at http://localhost:${port}`);
+  console.log(`🚀 Server running at http://localhost:${port}`);
 });
