@@ -11,11 +11,11 @@ const dbName = 'passop';
 const port = process.env.PORT || 3000;
 
 app.use(cors({
-  origin: 'https://password-manager-izgk.vercel.app/',
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type']
 }));
-app.use(express.json());
+
 
 let db;
 client.connect().then(() => {
