@@ -18,6 +18,7 @@ const Manager = () => {
       .then((res) => res.json())
       .then((data) => {
         setPasswordArray(data);
+        console.log("Fetched passwords:", data);
       })
       .catch((err) => {
         console.error(err);
@@ -53,16 +54,21 @@ const Manager = () => {
         );
         toast.success("Password updated!");
       } else {
+        // TEMPORARILY ALLOW ADDING PASSWORDS EVEN IF ONE EXISTS
+        // Remove this block if you want to allow only one password in future
+
         const res = await fetch(API_BASE, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(form),
         });
 
-        if (!res.ok) throw new Error('Add failed');
+        const result = await res.json();
+        console.log("Password add result:", result);
 
-        const newPassword = await res.json();
-        setPasswordArray((prev) => [...prev, newPassword]);
+        if (!res.ok) throw new Error(result.error || 'Add failed');
+
+        setPasswordArray((prev) => [...prev, result]);
         toast.success("Password added!");
       }
 
@@ -70,7 +76,7 @@ const Manager = () => {
       setCurrentlyEditing(null);
     } catch (error) {
       toast.error("Failed to save password.");
-      console.error(error);
+      console.error("Save error:", error);
     }
   };
 
